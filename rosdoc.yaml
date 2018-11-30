@@ -1,0 +1,4 @@
+- builder: doxygen
+  file_patterns: '*.cpp *.hpp *.dox *.md'
+  homepage: https://github.com/leggedrobotics/urdf2robcogen
+  use_mdfile_as_mainpage: README.md

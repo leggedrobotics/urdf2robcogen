@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+<package>
+  <name>urdf2robcogen</name>
+  <version>1.0.0</version>
+  <description>A package to generate RobCoGen description files from URDFs</description>
+
+  <author email="jcarius@ethz.ch">Jan Carius</author>
+  <author email="depardo@ethz.ch">Diego Pardo</author>
+
+  <maintainer email="jcarius@ethz.ch">Jan Carius</maintainer>
+
+  <license>BSD3</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+  <build_depend>roscpp</build_depend>
+  <build_depend>roslib</build_depend>
+  <build_depend>kindr</build_depend>
+  <build_depend>urdf</build_depend>
+
+  <run_depend>roscpp</run_depend>
+  <run_depend>roslib</run_depend>
+  <run_depend>kindr</run_depend>
+  <run_depend>urdf</run_depend>
+
+  <!-- The export tag contains other, unspecified, tags -->
+  <export>
+
+  </export>
+</package>

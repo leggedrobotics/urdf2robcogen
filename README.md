@@ -9,6 +9,8 @@
 This tool generates the [RobCoGen](https://robcogenteam.bitbucket.io/) description files (.kindsl & .dtdsl) from a [URDF](http://wiki.ros.org/urdf) description format.
 
 ## Building
+[![Build Status](https://ci.leggedrobotics.com/buildStatus/icon?job=github_leggedrobotics/urdf2robcogen/master)](https://ci.leggedrobotics.com/job/github_leggedrobotics/job/urdf2robcogen/job/master/)
+
 **Dependencies**
 
 * [Eigen](http://eigen.tuxfamily.org)

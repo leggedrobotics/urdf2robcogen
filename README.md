@@ -36,7 +36,8 @@ rosdoc_lite /path/to/package
 
 ## Usage
 
-Three modes of operation are possible:
+Three modes of operation are possible. The generated files are written into the directory where the executable was executed (i.e., the output of `pwd`).
+
 ### A) Run as standalone application (plain URDF file)
 You must have a URDF description of your robot as a plaintext xml file.
 This should not contain [xacro](http://wiki.ros.org/xacro) macros, i.e., you must invoke the xacro command beforehand to produce the URDF file.
@@ -52,6 +53,8 @@ The xacro urdf description can be given as a path
 roslaunch urdf2robcogen_ros convert.launch robot_name:=myRobot urdf_xacro_path:=/path/to/description.xacro
 ```
 Check the launchfile if you need to pass additional parameters to the xacro command.
+
+Note that roslaunch executes nodes in the `~/.ros/` directory, so the output files will be placed there.
 
 ### C) Use in your own executable
 This allows for more advanced interaction such as setting additional frames and using a debug mode.

@@ -407,9 +407,15 @@ void Urdf2RobCoGen::fixJointFrameRecursive(urdf::LinkSharedPtr& link, const Eige
     Eigen::Vector3d oldChild_axis;  // the original rotation axis in joint(=child) frame
     oldChild_axis << child_joint->axis.x, child_joint->axis.y, child_joint->axis.z;
 
-    // define rotation how old child frame must be rotated such that axis aligns
-    // with z
-    Eigen::Quaterniond q_oldChild_newChild = Eigen::Quaterniond::FromTwoVectors(Eigen::Vector3d::UnitZ(), oldChild_axis);
+    Eigen::Quaterniond q_parentlink_oldchild;
+    {
+      Eigen::Vector3d dummy;
+      findKindslJointTransfrom(child_joint->name, dummy, q_parentlink_oldchild);
+    }
+
+    // define rotation how old child frame must be rotated such that axis aligns with z
+    Eigen::Quaterniond q_oldChild_newChild =
+        Eigen::Quaterniond::FromTwoVectors(Eigen::Vector3d::UnitZ(), q_parentlink_oldchild * oldChild_axis);
 
     // new orientation of the child frame in the new parent frame
     Eigen::Quaterniond q_new_newChild = q_old_new.inverse() * q_old_oldChild * q_oldChild_newChild;
@@ -488,12 +494,9 @@ void Urdf2RobCoGen::setAdditionalFrames(const std::vector<std::string>& frames, 
   }
 }
 
-void Urdf2RobCoGen::fixJointParents(const std::string& jointName) {
+void Urdf2RobCoGen::findKindslJointTransfrom(const std::string& jointName, Eigen::Vector3d& P_r_P_C, Eigen::Quaterniond& q_P_C) {
   auto current_parent_link_name = urdf_model_.joints_[jointName]->parent_link_name;
   const auto movableParentLinkName = getParentLinkName(urdf_model_.links_[urdf_model_.joints_[jointName]->child_link_name]);
-
-  Eigen::Quaterniond q_P_C;  //! quaternion parent child
-  Eigen::Vector3d P_r_P_C;   //! position parent child
 
   urdf_model_.joints_[jointName]->parent_to_joint_origin_transform.rotation.getQuaternion(q_P_C.x(), q_P_C.y(), q_P_C.z(), q_P_C.w());
 
@@ -502,7 +505,7 @@ void Urdf2RobCoGen::fixJointParents(const std::string& jointName) {
              urdf_model_.joints_[jointName]->parent_to_joint_origin_transform.position.z;  // clang-format on
 
   while (current_parent_link_name != movableParentLinkName) {
-    auto PJoint = urdf_model_.links_[current_parent_link_name]->parent_joint;
+    const auto PJoint = urdf_model_.links_[current_parent_link_name]->parent_joint;
 
     Eigen::Quaterniond q_Pnext_P;     //! quaternion parent child
     Eigen::Vector3d Pnext_r_Pnext_P;  //! position parent child
@@ -517,12 +520,6 @@ void Urdf2RobCoGen::fixJointParents(const std::string& jointName) {
 
     current_parent_link_name = urdf_model_.links_[current_parent_link_name]->getParent()->name;  // step up the tree
   }
-
-  // finally, assign to the joint again
-  urdf_model_.joints_[jointName]->parent_to_joint_origin_transform.rotation.setFromQuaternion(q_P_C.x(), q_P_C.y(), q_P_C.z(), q_P_C.w());
-  urdf_model_.joints_[jointName]->parent_to_joint_origin_transform.position.x = P_r_P_C(0);
-  urdf_model_.joints_[jointName]->parent_to_joint_origin_transform.position.y = P_r_P_C(1);
-  urdf_model_.joints_[jointName]->parent_to_joint_origin_transform.position.z = P_r_P_C(2);
 }
 
 bool Urdf2RobCoGen::generateFiles() {
@@ -540,7 +537,17 @@ bool Urdf2RobCoGen::generateKindsl() {
   fixJointFrameRecursive(urdf_model_.root_link_);
 
   // fix joint parents
-  std::for_each(robot_joint_names_.begin(), robot_joint_names_.end(), [this](const std::string& jointName) { fixJointParents(jointName); });
+  for (const auto& jointName : robot_joint_names_) {
+    Eigen::Vector3d P_r_P_C;
+    Eigen::Quaterniond q_P_C;
+    findKindslJointTransfrom(jointName, P_r_P_C, q_P_C);
+
+    // assign to the joint again
+    urdf_model_.joints_[jointName]->parent_to_joint_origin_transform.rotation.setFromQuaternion(q_P_C.x(), q_P_C.y(), q_P_C.z(), q_P_C.w());
+    urdf_model_.joints_[jointName]->parent_to_joint_origin_transform.position.x = P_r_P_C(0);
+    urdf_model_.joints_[jointName]->parent_to_joint_origin_transform.position.y = P_r_P_C(1);
+    urdf_model_.joints_[jointName]->parent_to_joint_origin_transform.position.z = P_r_P_C(2);
+  }
 
   // reverse the link and joint vectors -> our parsing produced the inverse
   // order

@@ -110,10 +110,13 @@ class Urdf2RobCoGen {
   void fixJointFrameRecursive(urdf::LinkSharedPtr& link, const Eigen::Quaterniond q_old_new = Eigen::Quaterniond::Identity());
 
   /*!
-   * @brief change link position and rotation to be relative to true parent link
-   * @param[in] jointName the name of the joint to fix
+   * @brief Determine the joint transform of a kindsl joint, i.e., collect all URDF joint transforms up and including a movable joint is
+   * found
+   * @param[in] jointName the name of the joint to be queried
+   * @param[out] P_r_P_C joint transform - position of child w.r.t. parent in parent frame
+   * @param[out] q_P_C joint transform - quaternion that rotates a vector from child to parent frame
    */
-  void fixJointParents(const std::string& jointName);
+  void findKindslJointTransfrom(const std::string& jointName, Eigen::Vector3d& P_r_P_C, Eigen::Quaterniond& q_P_C) ;
 
   /*!
    * @brief Name of parent link (true movable link)
@@ -121,8 +124,6 @@ class Urdf2RobCoGen {
    * @return the name of the movable parent link
    */
   std::string getParentLinkName(const urdf::LinkConstSharedPtr& link);
-
-
 
  private:
   //! converts a quaternion into roll pitch yaw representation

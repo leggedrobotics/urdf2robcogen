@@ -109,6 +109,8 @@ class Urdf2RobCoGen {
    */
   void fixJointFrameRecursive(urdf::LinkSharedPtr& link, const Eigen::Quaterniond q_old_new = Eigen::Quaterniond::Identity());
 
+  void fixJointRecursive(urdf::LinkSharedPtr& link);
+
   /*!
    * @brief Determine the joint transform of a kindsl joint, i.e., collect all URDF joint transforms up and including a movable joint is
    * found
@@ -168,6 +170,14 @@ class Urdf2RobCoGen {
   //! print link and joint names to console (for debugging)
   void printLinkJointNames();
 
+  //! construct global
+  void generateJointPosesInRoot(urdf::LinkSharedPtr& link, urdf::Pose parentPoseInRoot);
+
+  //! generate kindsl parent
+  void generateKindslParents(urdf::LinkSharedPtr& link, std::string parent);
+
+  urdf::Rotation getRelativeRotationInParentFrame(const urdf::Rotation& rotationParent,  const urdf::Rotation& rotationChild);
+
  private:
   urdf::Model urdf_model_;  //! urdf parser object
 
@@ -179,6 +189,14 @@ class Urdf2RobCoGen {
   std::vector<std::string> robot_joint_names_;        //! "true" joints that will appear in the kindsl file
   std::map<std::string, urdf::Joint> frames_;         //! "fake" links that will appear as frames in the kindsl file
   std::vector<std::string> orphan_frames_;            //! temporary vector of frame names that will be added to frames_
+
+//  struct pose6d {
+//    EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
+//    Eigen::Vector3d position_;
+//    Eigen::Quaterniond orientation_;
+//  };
+  std::map<std::string, urdf::Pose> joint_pose_in_root_; //! joint positions and orientations in the root frame
+  std::map<std::string, std::string> joint_kindsl_parent_; //! joint positions and orientations in the root frame
 
   bool debug_mode_;  //! flag to turn on additional console output
 

@@ -5,7 +5,7 @@ project(urdf2robcogen)
 find_package(catkin REQUIRED COMPONENTS
   roscpp
   roslib
-  kindr
+  kindr_ros
   urdf
 )
 
@@ -34,7 +34,7 @@ catkin_package(
    CATKIN_DEPENDS
       roscpp
       roslib
-      kindr
+      kindr_ros
       urdf
    DEPENDS
       tinyxml

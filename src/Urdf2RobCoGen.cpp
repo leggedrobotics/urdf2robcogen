@@ -184,7 +184,7 @@ void Urdf2RobCoGen::moveInertiaFromFixedLink(const urdf::LinkSharedPtr& link) {
    * Extract the required positions and orientations
    */
 
-  Eigen::Vector3d P_r_P_Pcom;                                           // vector from parent frame to parent com in parent frame
+  Eigen::Vector3d P_r_P_Pcom; // vector from parent frame to parent com in parent frame
   P_r_P_Pcom << parent_link->inertial->origin.position.x,  // clang-format off
                 parent_link->inertial->origin.position.y,
                 parent_link->inertial->origin.position.z; // clang-format-on
@@ -201,7 +201,7 @@ void Urdf2RobCoGen::moveInertiaFromFixedLink(const urdf::LinkSharedPtr& link) {
                              // (constant because joint is of type FIXED)
   link->parent_joint->parent_to_joint_origin_transform.rotation.getQuaternion(q_P_C.x(), q_P_C.y(), q_P_C.z(), q_P_C.w());
 
-  Eigen::Vector3d C_r_C_Ccom;             // vector from child frame to child com in child frame
+  Eigen::Vector3d C_r_C_Ccom; // vector from child frame to child com in child frame
   C_r_C_Ccom << link->inertial->origin.position.x,  // clang-format off
                 link->inertial->origin.position.y,
                 link->inertial->origin.position.z;  // clang-format on
@@ -286,9 +286,9 @@ Eigen::Matrix3d Urdf2RobCoGen::inertiaMatrixFromLink(const urdf::LinkConstShared
 
 void Urdf2RobCoGen::assignInertiaToLink(const urdf::LinkSharedPtr& link, const Eigen::Matrix3d& inertia) {
   // sanity check on inertia
-  assert(inertia(0, 1) == inertia(1, 0));
-  assert(inertia(0, 2) == inertia(2, 0));
-  assert(inertia(1, 2) == inertia(2, 1));
+  assert(std::fabs(inertia(0, 1) - inertia(1, 0)) < 1e-6);
+  assert(std::fabs(inertia(0, 2) - inertia(2, 0)) < 1e-6);
+  assert(std::fabs(inertia(1, 2) - inertia(2, 1)) < 1e-6);
 
   Eigen::VectorXcd eigenvalues = inertia.eigenvalues();
   assert(eigenvalues.real().minCoeff() > 0.0 and eigenvalues.imag().cwiseAbs().maxCoeff() < 1e-9);
@@ -407,21 +407,21 @@ void Urdf2RobCoGen::fixJointFrameRecursive(urdf::LinkSharedPtr& link, const Eige
     Eigen::Vector3d oldChild_axis;  // the original rotation axis in joint(=child) frame
     oldChild_axis << child_joint->axis.x, child_joint->axis.y, child_joint->axis.z;
 
-    Eigen::Quaterniond q_parentlink_oldchild;
+    Eigen::Quaterniond q_newparentlink_oldchild;
     {
       Eigen::Vector3d dummy;
-      findKindslJointTransfrom(child_joint->name, dummy, q_parentlink_oldchild);
+      findKindslJointTransfrom(child_joint->name, dummy, q_newparentlink_oldchild);
     }
 
     // define rotation how old child frame must be rotated such that axis aligns with z
     Eigen::Quaterniond q_oldChild_newChild =
-        Eigen::Quaterniond::FromTwoVectors(Eigen::Vector3d::UnitZ(), q_parentlink_oldchild * oldChild_axis);
+        Eigen::Quaterniond::FromTwoVectors(Eigen::Vector3d::UnitZ(), q_newparentlink_oldchild * oldChild_axis);
 
     // new orientation of the child frame in the new parent frame
-    Eigen::Quaterniond q_new_newChild = q_old_new.inverse() * q_old_oldChild * q_oldChild_newChild;
+//    Eigen::Quaterniond q_new_newChild = q_old_new.inverse() * q_old_oldChild * q_oldChild_newChild;
 
-    child_joint->parent_to_joint_origin_transform.rotation.setFromQuaternion(q_new_newChild.x(), q_new_newChild.y(), q_new_newChild.z(),
-                                                                             q_new_newChild.w());
+    child_joint->parent_to_joint_origin_transform.rotation.setFromQuaternion(q_oldChild_newChild.x(), q_oldChild_newChild.y(), q_oldChild_newChild.z(),
+                                                                             q_oldChild_newChild.w());
 
     // finally, perform update recursively on the child link
     fixJointFrameRecursive(urdf_model_.links_[child_joint->child_link_name], q_oldChild_newChild);
@@ -528,26 +528,227 @@ bool Urdf2RobCoGen::generateFiles() {
   return (f1 && f2);
 }
 
+void Urdf2RobCoGen::generateJointPosesInRoot(urdf::LinkSharedPtr& link, urdf::Pose parentPoseInRoot) {
+  if (!link) {
+    throw std::runtime_error("link pointer not valid");
+  }
+
+  for (auto child_joint : link->child_joints) {
+    auto childName = child_joint->child_link_name;
+    auto jointName = child_joint->name;
+
+    // position
+    auto p_joint_parent = child_joint->parent_to_joint_origin_transform.position;
+    const urdf::Vector3 p_joint_root = p_joint_parent + parentPoseInRoot.position;
+
+    // Orientation
+    auto q_joint_parent  = child_joint->parent_to_joint_origin_transform.rotation;
+    const urdf::Rotation q_joint_root = q_joint_parent * parentPoseInRoot.rotation;
+
+    // Store result
+    urdf::Pose pose;
+    pose.position = p_joint_root;
+    pose.rotation = q_joint_root;
+    joint_pose_in_root_.insert({jointName,  pose});
+
+    std::cout << "[generateJointPoses] Joint " << jointName << "\n";
+    auto x_axis = q_joint_root * urdf::Vector3(1.0, 0.0, 0.0);
+    auto z_axis = q_joint_root * urdf::Vector3(0.0, 0.0, 1.0);
+    std::cout << "\t old x-axis in root " << x_axis.x << ", " << x_axis.y << ", " << x_axis.z << "\n";
+    std::cout << "\t old z-axis in root " << z_axis.x << ", " << z_axis.y << ", " << z_axis.z << "\n";
+
+    // Traverse down the tree
+    auto& nextChild = urdf_model_.links_[childName];
+    generateJointPosesInRoot(nextChild, pose);
+  }
+}
+
+void Urdf2RobCoGen::fixJointRecursive(urdf::LinkSharedPtr& link) {
+  if (!link) {
+    throw std::runtime_error("link pointer not valid");
+  }
+
+  for (auto child_joint : link->child_joints) {
+    // Position of parent
+    auto childName = child_joint->child_link_name;
+    auto jointName = child_joint->name;
+
+    // Retreive with assert that keys exist
+    assert( joint_kindsl_parent_.find(jointName) != joint_kindsl_parent_.end() );
+    auto kindslParent = joint_kindsl_parent_[jointName];
+    assert( joint_pose_in_root_.find(kindslParent) != joint_pose_in_root_.end() );
+    auto parentPose_inRoot = joint_pose_in_root_[kindslParent];
+    assert( joint_pose_in_root_.find(jointName) != joint_pose_in_root_.end() );
+    auto& childPose_inRoot = joint_pose_in_root_[jointName];
+
+    // Orientation
+    const auto rotation_parent_root_inRoot = parentPose_inRoot.rotation;
+    const auto rotation_child_root_inRoot = childPose_inRoot.rotation;
+    const auto rotation_child_parent_inRoot = getRelativeRotationInParentFrame(rotation_parent_root_inRoot, rotation_child_root_inRoot);
+
+    // verify it is a true joint and not a frame
+    if (std::find(robot_joint_names_.begin(), robot_joint_names_.end(), jointName) == robot_joint_names_.end()) {
+      // This child is not a moving joint can directly set the orientation
+      child_joint->parent_to_joint_origin_transform.rotation = rotation_child_parent_inRoot;
+    } else {
+      // This child is a moving joint --> will fix its orientation
+      const auto oldChild_axis_root = rotation_child_root_inRoot * child_joint->axis;
+
+      Eigen::Vector3d oldChild_axis;  // the original rotation axis in joint(=child) frame
+      oldChild_axis << oldChild_axis_root.x, oldChild_axis_root.y, oldChild_axis_root.z;
+
+      // define rotation how old child frame must be rotated such that axis aligns with z
+      const Eigen::Quaterniond q_newChild_root_eigen =
+          Eigen::Quaterniond::FromTwoVectors(Eigen::Vector3d::UnitZ(), oldChild_axis);
+      const urdf::Rotation q_newChild_root_inRoot(q_newChild_root_eigen.x(), q_newChild_root_eigen.y(), q_newChild_root_eigen.z(), q_newChild_root_eigen.w());
+
+      // Fix orientations
+      const auto new_rotation_child_root_inRoot = q_newChild_root_inRoot;
+      const auto new_rotation_child_parent_inParent = getRelativeRotationInParentFrame(rotation_parent_root_inRoot, new_rotation_child_root_inRoot);
+      childPose_inRoot.rotation = new_rotation_child_root_inRoot;
+      std::cout << "[fixJointRecursive] Joint " << jointName << "\n";
+      std::cout << "\t old x-axis in root " << print_vector(rotation_child_root_inRoot * urdf::Vector3(1.0, 0.0, 0.0)) << "\n";
+      std::cout << "\t new x-axis in root " << print_vector(new_rotation_child_root_inRoot * urdf::Vector3(1.0, 0.0, 0.0)) << "\n";
+      std::cout << "\t old z-axis in root " << print_vector(rotation_child_root_inRoot * urdf::Vector3(0.0, 0.0, 1.0)) << "\n";
+      std::cout << "\t new z-axis in root " << print_vector(new_rotation_child_root_inRoot * urdf::Vector3(0.0, 0.0, 1.0)) << "\n";
+      std::cout << "\t rotation root to child" <<  print_vector(rotation_vector(new_rotation_child_root_inRoot)) << "\n";
+      std::cout << "\t rotation root to parent" << print_vector(rotation_vector(rotation_parent_root_inRoot)) << "\n";
+      std::cout << "\t rotation parent to child" << print_vector(rotation_vector(new_rotation_child_parent_inParent)) << "\n";
+
+      // set fixed orientation
+      child_joint->parent_to_joint_origin_transform.rotation = new_rotation_child_parent_inParent;
+
+      // Correct inertia of next link after rotating parent joint
+      auto nextLink = urdf_model_.links_[childName];
+      if (nextLink->inertial) {
+        std::cout << "[fixJointRecursive] Correcting inertia of " << childName << "\n";
+
+        // Extract local rotation performed
+//        // This child is a moving joint --> will fix its orientation
+        Eigen::Vector3d oldChild_axis_inParent;  // the original rotation axis in joint(=child) frame
+        oldChild_axis_inParent << child_joint->axis.x, child_joint->axis.y, child_joint->axis.z;
+//
+//        // define rotation how old child frame must be rotated such that axis aligns with z
+//        const Eigen::Quaterniond q_newChild_oldChild_inParent_eigen = Eigen::Quaterniond::FromTwoVectors(Eigen::Vector3d::UnitZ(), oldChild_axis_inParent);
+//        const urdf::Rotation q_newChild_oldChild(q_newChild_oldChild_inParent_eigen.x(),
+//                                                 q_newChild_oldChild_inParent_eigen.y(),
+//                                                 q_newChild_oldChild_inParent_eigen.z(),
+//                                                 q_newChild_oldChild_inParent_eigen.w());
+        const urdf::Rotation q_newChild_oldChild = getRelativeRotationInParentFrame(rotation_child_root_inRoot, new_rotation_child_root_inRoot);
+        const Eigen::Quaterniond q_newChild_oldChild_eigen(q_newChild_oldChild.w, q_newChild_oldChild.x, q_newChild_oldChild.y, q_newChild_oldChild.z);
+        Eigen::Matrix3d R_old_new = q_newChild_oldChild_eigen.toRotationMatrix(); // from active to passive rotation?
+        Eigen::Matrix3d R_new_old = R_old_new.inverse(); // from active to passive rotation?
+        std::cout << "\t rotation old Child to new Child" << print_vector(rotation_vector(q_newChild_oldChild)) << "\n";
+        std::cout << "\t matrix old Child to new Child\n" << R_new_old << "\n";
+        std::cout << "\t old rotation axis mapped to new Child " << (R_new_old * oldChild_axis_inParent).transpose()
+        << " should be == [0, 0, 1] \n";
+
+        // Rotate center of mass position
+        Eigen::Vector3d com_inOldChild;  // the original rotation axis in joint(=child) frame
+        com_inOldChild << nextLink->inertial->origin.position.x, nextLink->inertial->origin.position.y, nextLink->inertial->origin.position.z;
+        Eigen::Vector3d com_inNewChild = R_new_old * com_inOldChild;
+        nextLink->inertial->origin.position.x = com_inNewChild.x();
+        nextLink->inertial->origin.position.y = com_inNewChild.y();
+        nextLink->inertial->origin.position.z = com_inNewChild.z();
+
+        // Need to also update the frame
+        auto& comFrame = frames_[childName + "_COM"];
+        comFrame.parent_to_joint_origin_transform.position = nextLink->inertial->origin.position;
+
+        // Rotate inertia
+        // rotate child inertia into parent frame
+        Eigen::Matrix3d oldChild_I = inertiaMatrixFromLink(nextLink);
+        const Eigen::Matrix3d newChild_I = R_new_old * oldChild_I * R_new_old.transpose();
+        assignInertiaToLink(nextLink, newChild_I);
+
+        std::cout << "\t old com " << com_inOldChild.transpose() << " \n";
+        std::cout << "\t new com " << com_inNewChild.transpose() << " \n";
+        std::cout << "\t old Child Inertia \n" << oldChild_I << "\n";
+        std::cout << "\t new Child Inertia \n" << newChild_I << "\n";
+      }
+    }
+
+    // Position
+    urdf::Vector3 position_child_parent_inRoot(childPose_inRoot.position.x - parentPose_inRoot.position.x,
+        childPose_inRoot.position.y - parentPose_inRoot.position.y,
+        childPose_inRoot.position.z - parentPose_inRoot.position.z);
+    const auto position_child_parent_inParent = rotation_parent_root_inRoot.GetInverse() * position_child_parent_inRoot;
+    child_joint->parent_to_joint_origin_transform.position = position_child_parent_inParent;
+
+    // Update frame with the same
+    for (auto& frame : frames_) {
+      auto& frameName = frame.first;
+      auto& joint = frame.second;
+      if (frameName == childName) {
+        joint.parent_to_joint_origin_transform.position = child_joint->parent_to_joint_origin_transform.position;
+        joint.parent_to_joint_origin_transform.rotation = child_joint->parent_to_joint_origin_transform.rotation;
+      }
+    }
+
+    // Traverse down the tree
+    auto nextChild = urdf_model_.links_[childName];
+    fixJointRecursive(nextChild);
+  }
+}
+
+urdf::Rotation Urdf2RobCoGen::getRelativeRotationInParentFrame(const urdf::Rotation& rotationParentInFrame,  const urdf::Rotation& rotationChildInFrame) {
+//  return rotationChildInFrame * rotationParentInFrame.GetInverse();
+  return rotationParentInFrame.GetInverse() * rotationChildInFrame;
+}
+
+void Urdf2RobCoGen::generateKindslParents(urdf::LinkSharedPtr& link, std::string parent) {
+  if (!link) {
+    throw std::runtime_error("link pointer not valid");
+  }
+
+  for (auto child_joint : link->child_joints) {
+    auto childName = child_joint->child_link_name;
+    auto jointName = child_joint->name;
+    joint_kindsl_parent_.insert({jointName, parent});
+
+    // verify it is a true joint and not a frame
+    if (std::find(robot_joint_names_.begin(), robot_joint_names_.end(), jointName) == robot_joint_names_.end()) {
+      // This child is not a moving joint -> traverse down
+      generateKindslParents(urdf_model_.links_[childName], parent);
+    } else {
+      // Continue traversal with this child as parent
+      generateKindslParents(urdf_model_.links_[childName], jointName);
+    }
+  }
+}
+
 bool Urdf2RobCoGen::generateKindsl() {
   if (robot_link_names_.empty()) {
     throw std::runtime_error("Link names are still empty.");
   }
 
-  // fix frames!
-  fixJointFrameRecursive(urdf_model_.root_link_);
+  // Add root the poses in root
+  urdf::Pose pose;
+  pose.position = urdf::Vector3(0.0, 0.0, 0.0);
+  pose.rotation = urdf::Rotation(0.0, 0.0, 0.0, 1.0);
+  joint_pose_in_root_.insert({root_link_name_,  pose});
+  generateJointPosesInRoot(urdf_model_.root_link_, pose);
 
-  // fix joint parents
-  for (const auto& jointName : robot_joint_names_) {
-    Eigen::Vector3d P_r_P_C;
-    Eigen::Quaterniond q_P_C;
-    findKindslJointTransfrom(jointName, P_r_P_C, q_P_C);
+  // Add parents, root is his own parent
+  joint_kindsl_parent_.insert({root_link_name_, root_link_name_});
+  generateKindslParents(urdf_model_.root_link_, root_link_name_);
 
-    // assign to the joint again
-    urdf_model_.joints_[jointName]->parent_to_joint_origin_transform.rotation.setFromQuaternion(q_P_C.x(), q_P_C.y(), q_P_C.z(), q_P_C.w());
-    urdf_model_.joints_[jointName]->parent_to_joint_origin_transform.position.x = P_r_P_C(0);
-    urdf_model_.joints_[jointName]->parent_to_joint_origin_transform.position.y = P_r_P_C(1);
-    urdf_model_.joints_[jointName]->parent_to_joint_origin_transform.position.z = P_r_P_C(2);
-  }
+//  // fix frames!
+  fixJointRecursive(urdf_model_.root_link_);
+//  fixJointFrameRecursive(urdf_model_.root_link_);
+
+//  // fix joint parents
+//  for (const auto& jointName : robot_joint_names_) {
+//    Eigen::Vector3d P_r_P_C;
+//    Eigen::Quaterniond q_P_C;
+//    findKindslJointTransfrom(jointName, P_r_P_C, q_P_C);
+//
+//    // assign to the joint again
+//    urdf_model_.joints_[jointName]->parent_to_joint_origin_transform.rotation.setFromQuaternion(q_P_C.x(), q_P_C.y(), q_P_C.z(), q_P_C.w());
+//    urdf_model_.joints_[jointName]->parent_to_joint_origin_transform.position.x = P_r_P_C(0);
+//    urdf_model_.joints_[jointName]->parent_to_joint_origin_transform.position.y = P_r_P_C(1);
+//    urdf_model_.joints_[jointName]->parent_to_joint_origin_transform.position.z = P_r_P_C(2);
+//  }
 
   // reverse the link and joint vectors -> our parsing produced the inverse
   // order
@@ -754,8 +955,7 @@ std::string Urdf2RobCoGen::print_inertia_params(const urdf::Link& link) const {
   yz << std::fixed << -link.inertial->iyz;
 
   out << "\t\tmass = " << mass.str() << std::endl
-      << "\t\tCoM = "
-      << "(0.0, 0.0, 0.0)" << std::endl
+      << "\t\tCoM = " << "(0.0, 0.0, 0.0)" << std::endl
       << "\t\tIx = " << std::fixed << xx.str() << std::endl
       << "\t\tIy = " << std::fixed << yy.str() << std::endl
       << "\t\tIz = " << std::fixed << zz.str() << std::endl
@@ -905,7 +1105,7 @@ void Urdf2RobCoGen::printLinkJointNames() {
   }
 
   std::cout << "press <any key> to continue..." << std::endl;
-  std::getchar();
+//  std::getchar();
 }
 
 std::string Urdf2RobCoGen::getParentLinkName(const urdf::LinkConstSharedPtr& link) {

@@ -11,7 +11,6 @@
 struct UrdfInfo {
   bool floatingBaseSystem_;
   std::string rootLinkName_;
-  std::map<std::string, unsigned int> linkId_;
   std::vector<std::string> robotLinkNames_;        //! "true" links that will appear in the kindsl file
   std::map<std::string, std::string> robotLinkParentNames_;  //! "true" parent links as they will appear in the kindsl file
   std::map<std::string, std::vector<std::string>> robotLinkChildrenNames_;  //! "true" children links as they will appear in the kindsl file

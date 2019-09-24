@@ -52,7 +52,14 @@ include_directories(
 )
 
 add_library(${PROJECT_NAME}
-  src/Urdf2RobCoGen.cpp)
+  src/Urdf2RobCoGen.cpp
+  src/parseUrdf.cpp
+  src/generateKindsl.cpp
+  src/generateDtDsl.cpp
+  src/ParseFixedFrames.cpp
+  src/UrdfInfo.cpp
+  src/FixJointAxes.cpp
+  src/utils.cpp)
 target_link_libraries(${PROJECT_NAME}
   ${catkin_LIBRARIES}
 )
@@ -60,6 +67,13 @@ target_link_libraries(${PROJECT_NAME}
 add_executable(${PROJECT_NAME}_node
   src/Urdf2RobCoGen_node.cpp)
 target_link_libraries(${PROJECT_NAME}_node
+  ${PROJECT_NAME}
+  ${catkin_LIBRARIES}
+)
+
+add_executable(${PROJECT_NAME}_test
+  src/Urdf2RobCoGen_test.cpp)
+target_link_libraries(${PROJECT_NAME}_test
   ${PROJECT_NAME}
   ${catkin_LIBRARIES}
 )

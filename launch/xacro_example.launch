@@ -1,0 +1,20 @@
+<launch>
+
+  <arg name="robot_name"            default="myRobot"/>
+  <arg name="description_file"      default="$(find urdf2robcogen)/examples/xacro_example.xacro"/>
+  <arg name="description_name"      default="robot_description"/>
+  <arg name="output_folder"         default="$(find urdf2robcogen)/generated"/>
+  <arg name="verbose"               default="true"/>
+
+  <!-- load description -->
+  <param name="$(arg description_name)" command="$(find xacro)/xacro --inorder $(arg description_file)"/>
+
+  <!-- run parser -->
+  <include file="$(find urdf2robcogen)/launch/urdf2robcogen.launch">
+   <arg name="description_name" value="$(arg description_name)" />
+   <arg name="robot_name"       value="$(arg robot_name)" />
+   <arg name="output_folder"    value="$(arg output_folder)" />
+   <arg name="verbose"          value="$(arg verbose)" />
+  </include>
+
+</launch>

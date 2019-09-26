@@ -1,0 +1,15 @@
+<launch>
+
+  <arg name="description_name"/>
+  <arg name="robot_name"/>
+  <arg name="output_folder" default="$(find urdf2robcogen)/generated"/>
+  <arg name="verbose" default="false"/>
+
+  <node pkg="urdf2robcogen" type="urdf2robcogen_node" name="urdf2robcogen" output="screen">
+   <param name="description_name" value="$(arg description_name)" />
+   <param name="robot_name"       value="$(arg robot_name)" />
+   <param name="output_folder"    value="$(arg output_folder)" />
+   <param name="verbose"          value="$(arg verbose)" />
+  </node>
+
+</launch>

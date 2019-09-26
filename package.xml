@@ -5,9 +5,11 @@
   <description>A package to generate RobCoGen description files from URDFs</description>
 
   <author email="jcarius@ethz.ch">Jan Carius</author>
+  <author email="rgrandia@ethz.ch">Ruben Grandia</author>
   <author email="depardo@ethz.ch">Diego Pardo</author>
 
   <maintainer email="jcarius@ethz.ch">Jan Carius</maintainer>
+  <maintainer email="rgrandia@ethz.ch">Ruben Grandia</maintainer>
 
   <license>BSD3</license>
 

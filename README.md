@@ -1,8 +1,8 @@
 # URDF2ROBCOGEN {#mainpage}
 
-**Author**: Jan Carius (jcarius@ethz.ch), based on an earlier version by Diego Pardo (depardo@ethz.ch)<br>
+**Authors**: Jan Carius (jcarius@ethz.ch) and Ruben Grandia (rgrandia@ethz.ch), based on an earlier version by Diego Pardo (depardo@ethz.ch)<br>
 
-**Maintainer**: Jan Carius (jcarius@ethz.ch)
+**Maintainers**: Jan Carius (jcarius@ethz.ch) and Ruben Grandia (rgrandia@ethz.ch)
 
 ## What is this repository for?
 

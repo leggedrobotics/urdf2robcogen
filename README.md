@@ -36,7 +36,7 @@ rosdoc_lite /path/to/package
 
 ## Usage
 
-Three modes of operation are possible. The generated files are written into the directory where the executable was executed (i.e., the output of `pwd`).
+Two modes of operation are possible.
 
 ### A) Run as standalone application (plain URDF file)
 You must have a URDF description of your robot as a plaintext xml file.
@@ -44,33 +44,21 @@ This should not contain [xacro](http://wiki.ros.org/xacro) macros, i.e., you mus
 
 To generate the robcogen description, execute
 ```bash
-./urdf2robcogen_node RobotName /path/to/description.urdf
+./urdf2robcogen_script RobotName /path/to/description.urdf
 ```
 
-### B) Run as standalone application (xacro urdf file)
-The xacro urdf description can be given as a path
+The generated files are written into the directory where the executable was executed (i.e., the output of `pwd`).
+
+### B) Using a launch file (xacro urdf file)
+The urdf2robcogen.launch file converts a robot description on the parameter server.
+
 ```bash
-roslaunch urdf2robcogen_ros convert.launch robot_name:=myRobot urdf_xacro_path:=/path/to/description.xacro
+roslaunch urdf2robcogen urdf2robcogen.launch robot_name:=myRobot description_name:=robot_description
 ```
-Check the launchfile if you need to pass additional parameters to the xacro command.
 
-Note that roslaunch executes nodes in the `~/.ros/` directory, so the output files will be placed there.
+See xacro_example.launch to see how to integrate this with generation of the robot description.
 
-### C) Use in your own executable
-This allows for more advanced interaction such as setting additional frames and using a debug mode.
-A minimal example follows below. For more advanced uses check the documentation.
-```cpp
-#include <urdf2robcogen/Urdf2RobCoGen.hpp>
-
-//(...)
-
-const bool debug_mode = false;
-urdf2robcogen::Urdf2RobCoGen myrobot("/path/to/description.urdf", "myRobotName", debug_mode);
-myrobot.parseUrdf();
-myrobot.generateFiles();
-
-//(...)
-```
+As a default, output files are placed in the /generated folder of this package.
 
 ## Main differences between URDF and RobCoGen/Kindsl ##
 

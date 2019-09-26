@@ -1,25 +1,42 @@
+#include <iostream>
+
+#include <ros/ros.h>
+
 #include <urdf2robcogen/Urdf2RobCoGen.hpp>
 
-int main(int argc, char* argv[]) {
-  std::cout << "This is urdf2robocogen." << std::endl;
-
-  if (argc < 3) {
-    std::cout << "Usage:\n"
-              << "./urdf2robcogen_node RobotName /path/to/description.urdf" << std::endl;
-    std::cout << "Going to exit." << std::endl;
-    return 0;
+template<typename T>
+T getParamWithCheck(const ros::NodeHandle& nodehandle, const std::string& name) {
+  T value;
+  if (!nodehandle.getParam(name, value)) {
+    throw ros::Exception("Error reading ros parameter: " + name);
   }
+  return value;
+}
 
-  const std::string robotName = argv[1];
-  const std::string urdfPath = argv[2];
+int main(int argc, char* argv[]) {
+  ros::init(argc, argv, "urdf2robcogen_node");
+  ros::NodeHandle nodeHandlePrivate("~");
+  ros::NodeHandle nodeHandle;
 
-  constexpr bool debug_on = false;
+  // Read parameters
+  const auto robotName = getParamWithCheck<std::string>(nodeHandlePrivate, "robot_name");
+  const auto outputFolder = getParamWithCheck<std::string>(nodeHandlePrivate, "output_folder");
+  const auto descriptionName = getParamWithCheck<std::string>(nodeHandlePrivate, "description_name");
+  const auto urdfString = getParamWithCheck<std::string>(nodeHandle, descriptionName);
+  const auto verbose = getParamWithCheck<bool>(nodeHandlePrivate, "verbose");
 
-  urdf2robcogen::Urdf2RobCoGen myrobot(urdfPath, robotName, debug_on);
-  myrobot.parseUrdf();
-  myrobot.generateFiles();
+  // Read urdf
+  urdf::Model urdf;
+  if (!urdf.initString(urdfString)) {
+    throw std::runtime_error("Invalid URDF File");
+  }
+  TiXmlDocument urdfXml;  //! handle to the urdf xml file
+  urdfXml.Parse(urdfString.c_str());
 
-  std::cout << "urdf2robcogen: Done generating files." << std::endl;
+  // Run parser
+  std::cout << "[urdf2robcogen] Start generating files." << std::endl;
+  urdf2RobCoGen(robotName, std::move(urdf), std::move(urdfXml), outputFolder, verbose);
+  std::cout << "[urdf2robcogen] Done generating files." << std::endl;
 
   return 0;
 }

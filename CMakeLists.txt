@@ -53,13 +53,10 @@ include_directories(
 
 add_library(${PROJECT_NAME}
   src/Urdf2RobCoGen.cpp
-  src/parseUrdf.cpp
-  src/generateKindsl.cpp
-  src/generateDtDsl.cpp
-  src/ParseFixedFrames.cpp
-  src/UrdfInfo.cpp
-  src/FixJointAxes.cpp
-  src/utils.cpp)
+  src/GenerateKindsl.cpp
+  src/GenerateDtDsl.cpp
+  src/UrdfStructure.cpp
+  src/Utils.cpp)
 target_link_libraries(${PROJECT_NAME}
   ${catkin_LIBRARIES}
 )
@@ -71,9 +68,9 @@ target_link_libraries(${PROJECT_NAME}_node
   ${catkin_LIBRARIES}
 )
 
-add_executable(${PROJECT_NAME}_test
-  src/Urdf2RobCoGen_test.cpp)
-target_link_libraries(${PROJECT_NAME}_test
+add_executable(${PROJECT_NAME}_script
+  src/Urdf2RobCoGen_script.cpp)
+target_link_libraries(${PROJECT_NAME}_script
   ${PROJECT_NAME}
   ${catkin_LIBRARIES}
 )
@@ -85,9 +82,12 @@ install(DIRECTORY include/${PROJECT_NAME}/
   DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
   PATTERN ".svn" EXCLUDE
 )
-install(TARGETS ${PROJECT_NAME} ${PROJECT_NAME}_node
+install(TARGETS ${PROJECT_NAME}
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
+install(TARGETS ${PROJECT_NAME}_node ${PROJECT_NAME}_script
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 install(DIRECTORY examples launch

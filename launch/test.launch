@@ -1,5 +1,0 @@
-<launch>
-
-  <node pkg="urdf2robcogen" type="urdf2robcogen_test" name="urdf2robcogen_test" output="screen"/>
-
-</launch>

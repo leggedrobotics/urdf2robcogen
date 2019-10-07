@@ -177,8 +177,8 @@ void moveInertiaFromTo(LinkInfo& linkInfoA, LinkInfo& linkInfoB) {
   newComPose.position_ = massA / massTot * comPoseInWorldA.position_ + massB / massTot * comPoseInWorldB.position_;
   newComPose.rotationWorldToFrame_ = comPoseInWorldB.rotationWorldToFrame_;
 
-  Eigen::Matrix3d I_ofA_inNewCom = expressInertiaFromFrameAInFrameC(linkInfoA.inertia_->I_, massA, comPoseInWorldA, newComPose);
-  Eigen::Matrix3d I_ofB_inNewCom = expressInertiaFromFrameAInFrameC(linkInfoB.inertia_->I_, massB, comPoseInWorldB, newComPose);
+  Eigen::Matrix3d I_ofA_inNewCom = expressInertiaFromFrameAInComFrame(linkInfoA.inertia_->I_, massA, comPoseInWorldA, newComPose);
+  Eigen::Matrix3d I_ofB_inNewCom = expressInertiaFromFrameAInComFrame(linkInfoB.inertia_->I_, massB, comPoseInWorldB, newComPose);
 
   // All inertia is assigned to B with the new com location
   linkInfoB.inertia_->comFramePoseInWorld_ = newComPose;

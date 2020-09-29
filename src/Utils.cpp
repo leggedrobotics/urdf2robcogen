@@ -28,7 +28,7 @@ bool isValidInertiaMatrix(Eigen::Matrix3d inertia) {
   bool isValid = true;
 
   Eigen::VectorXcd eigenvalues = inertia.eigenvalues();
-  isValid &= (eigenvalues.real().minCoeff() >= 0.0);
+  isValid &= (eigenvalues.real().minCoeff() > -1e-9);
   isValid &= (eigenvalues.imag().cwiseAbs().maxCoeff() < 1e-9);
 
   isValid &= (std::fabs(inertia(0, 1) - inertia(1, 0)) < 1e-6);

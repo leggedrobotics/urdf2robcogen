@@ -172,18 +172,20 @@ void moveInertiaFromTo(LinkInfo& linkInfoA, LinkInfo& linkInfoB) {
   double massB = linkInfoB.inertia_->m_;
   double massTot = massA + massB;
 
-  // New center of mass position
-  PoseInWorld newComPose;
-  newComPose.position_ = massA / massTot * comPoseInWorldA.position_ + massB / massTot * comPoseInWorldB.position_;
-  newComPose.rotationWorldToFrame_ = comPoseInWorldB.rotationWorldToFrame_;
+  if (massTot > 0.0) {
+    // New center of mass position
+    PoseInWorld newComPose;
+    newComPose.position_ = massA / massTot * comPoseInWorldA.position_ + massB / massTot * comPoseInWorldB.position_;
+    newComPose.rotationWorldToFrame_ = comPoseInWorldB.rotationWorldToFrame_;
 
-  Eigen::Matrix3d I_ofA_inNewCom = expressInertiaFromFrameAInComFrame(linkInfoA.inertia_->I_, massA, comPoseInWorldA, newComPose);
-  Eigen::Matrix3d I_ofB_inNewCom = expressInertiaFromFrameAInComFrame(linkInfoB.inertia_->I_, massB, comPoseInWorldB, newComPose);
+    Eigen::Matrix3d I_ofA_inNewCom = expressInertiaFromFrameAInComFrame(linkInfoA.inertia_->I_, massA, comPoseInWorldA, newComPose);
+    Eigen::Matrix3d I_ofB_inNewCom = expressInertiaFromFrameAInComFrame(linkInfoB.inertia_->I_, massB, comPoseInWorldB, newComPose);
 
-  // All inertia is assigned to B with the new com location
-  linkInfoB.inertia_->comFramePoseInWorld_ = newComPose;
-  linkInfoB.inertia_->m_ = massTot;
-  linkInfoB.inertia_->I_ = I_ofA_inNewCom + I_ofB_inNewCom;
+    // All inertia is assigned to B with the new com location
+    linkInfoB.inertia_->comFramePoseInWorld_ = newComPose;
+    linkInfoB.inertia_->m_ = massTot;
+    linkInfoB.inertia_->I_ = I_ofA_inNewCom + I_ofB_inNewCom;
+  } // if both masses are zero, there is no inertia to move and we leave B as it is.
 
   // A will no longer have inertia
   linkInfoA.inertia_.reset();

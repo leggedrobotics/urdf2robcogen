@@ -24,12 +24,15 @@ Eigen::Matrix3d inertiaMatrixFromLink(const urdf::Link& link) {
   return inertia;
 }
 
-bool isValidInertiaMatrix(Eigen::Matrix3d inertia) {
+bool isValidInertiaMatrix(const Eigen::Matrix3d& inertia) {
+  // Eigenvalues might be come slightly negative when the inertia matrix has a eigenvalue that is numerically close to zero.
+  const double eigenValueTolerance = 1e-9;
+
   bool isValid = true;
 
   Eigen::VectorXcd eigenvalues = inertia.eigenvalues();
-  isValid &= (eigenvalues.real().minCoeff() >= 0.0);
-  isValid &= (eigenvalues.imag().cwiseAbs().maxCoeff() < 1e-9);
+  isValid &= (eigenvalues.real().minCoeff() > -eigenValueTolerance);
+  isValid &= (eigenvalues.imag().cwiseAbs().maxCoeff() < eigenValueTolerance);
 
   isValid &= (std::fabs(inertia(0, 1) - inertia(1, 0)) < 1e-6);
   isValid &= (std::fabs(inertia(0, 2) - inertia(2, 0)) < 1e-6);
@@ -38,17 +41,18 @@ bool isValidInertiaMatrix(Eigen::Matrix3d inertia) {
   return isValid;
 }
 
-Eigen::Matrix3d expressInertiaFromFrameAInComFrame(Eigen::Matrix3d A_I_A, double m, PoseInWorld poseA, PoseInWorld poseCom) {
+Eigen::Matrix3d expressInertiaFromFrameAInComFrame(const Eigen::Matrix3d& A_I_A, double m, const PoseInWorld& poseA,
+                                                   const PoseInWorld& poseCom) {
   // Notation A_I_C = inertia w.r.t point C expressed in frame A
   // Relative orientation
   const Eigen::Quaterniond& q_A_W = poseA.rotationWorldToFrame_;
   const Eigen::Quaterniond& q_C_W = poseCom.rotationWorldToFrame_;
-  const Eigen::Quaterniond& q_A_C = q_A_W * q_C_W.inverse();  // rotates a vector from frame C to A
-  const Eigen::Matrix3d R_A_C = q_A_C.toRotationMatrix();     // rotates a vector from frame C to A
+  const Eigen::Quaterniond q_A_C = q_A_W * q_C_W.inverse();  // rotates a vector from frame C to A
+  const Eigen::Matrix3d R_A_C = q_A_C.toRotationMatrix();    // rotates a vector from frame C to A
 
   // Relative position
-  const Eigen::Vector3d& W_r_A_C = poseA.position_ - poseCom.position_;  // vector from C to A in world frame
-  const Eigen::Vector3d C_r_A_C = q_C_W * W_r_A_C;                       // vector from C to A in C frame
+  const Eigen::Vector3d W_r_A_C = poseA.position_ - poseCom.position_;  // vector from C to A in world frame
+  const Eigen::Vector3d C_r_A_C = q_C_W * W_r_A_C;                      // vector from C to A in C frame
 
   // Rotate inertia into frame C
   const Eigen::Matrix3d C_I_A = R_A_C.transpose() * A_I_A * R_A_C;

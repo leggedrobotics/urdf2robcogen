@@ -13,8 +13,8 @@
 #include <urdf2robcogen/UrdfStructure.hpp>
 
 Eigen::Matrix3d inertiaMatrixFromLink(const urdf::Link& link);
-bool isValidInertiaMatrix(Eigen::Matrix3d I);
-Eigen::Matrix3d expressInertiaFromFrameAInComFrame(Eigen::Matrix3d A_I_A, double m, PoseInWorld poseA, PoseInWorld poseC);
+bool isValidInertiaMatrix(const Eigen::Matrix3d& I);
+Eigen::Matrix3d expressInertiaFromFrameAInComFrame(const Eigen::Matrix3d& A_I_A, double m, const PoseInWorld& poseA, const PoseInWorld& poseC);
 
 Eigen::Matrix3d skewSymMatrixFromVector(const Eigen::Vector3d& vec);
 
